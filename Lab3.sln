@@ -1,25 +1,610 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36429.23 d17.14
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lab3", "Lab3\Lab3.csproj", "{A7158EBE-F2A9-4671-BEA8-72F7C91205D9}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{A7158EBE-F2A9-4671-BEA8-72F7C91205D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A7158EBE-F2A9-4671-BEA8-72F7C91205D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A7158EBE-F2A9-4671-BEA8-72F7C91205D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A7158EBE-F2A9-4671-BEA8-72F7C91205D9}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {F0D7D208-2670-4D0A-9231-4E11F55D13A2}
-	EndGlobalSection
-EndGlobal
+using System;
+using System.IO;
+using System.Text;
+using System.Xml.Serialization;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LabWork
+{
+    //  Задания 1-3 
+    public class MatrixClass
+    {
+        private double[,] data;
+        private static Random rand = new Random();
+
+        public MatrixClass() { }
+
+        public MatrixClass(int n, int m, bool fromKeyboard = true)
+        {
+            data = new double[n, m];
+
+            if (fromKeyboard)
+            {
+                Console.WriteLine($"Введите элементы матрицы {n}x{m} (по столбцам снизу вверх):");
+
+                for (int j = 0; j < m; j++)
+                {
+                    Console.WriteLine($"\nСтолбец {j + 1}:");
+                    for (int i = n - 1; i >= 0; i--)
+                    {
+                        bool valid = false;
+                        while (!valid)
+                        {
+                            Console.Write($"  Строка {n - i} [{i},{j}]: ");
+                            string input = Console.ReadLine();
+                            if (double.TryParse(input, out double value))
+                            {
+                                data[i, j] = value;
+                                valid = true;
+                            }
+                            else
+                            {
+                                Console.WriteLine("  Ошибка! Введите число.");
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    for (int j = 0; j < m; j++)
+                    {
+                        data[i, j] = i * m + j + 1;
+                    }
+                }
+            }
+        }
+
+        public MatrixClass(int n, string type)
+        {
+            data = new double[n, n];
+
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    if (j > i) // Выше главной диагонали
+                        data[i, j] = Math.Round(rand.NextDouble() * (45.675 - (-4.5)) + (-4.5), 3);
+                    else // На главной диагонали и ниже
+                        data[i, j] = Math.Round(rand.NextDouble() * (100 - (-100)) + (-100), 3);
+                }
+            }
+        }
+
+        public MatrixClass(int n)
+        {
+            data = new double[n, n];
+
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = 0; j < n; j++)
+                {
+                    if (i == j)
+                        data[i, j] = 1;
+                    else if (i < j)
+                        data[i, j] = i + j + 1;
+                    else
+                        data[i, j] = -(i + j + 1);
+                }
+            }
+        }
+
+        public MatrixClass(double[,] array)
+        {
+            data = (double[,])array.Clone();
+        }
+
+        public int Rows => data.GetLength(0);
+        public int Cols => data.GetLength(1);
+
+        // Задание 2: Минимальный из повторяющихся элементов
+        public double FindMinRepeating()
+        {
+            if (data == null || data.Length == 0)
+                return double.NaN;
+
+            var frequency = new Dictionary<double, int>();
+
+            foreach (double value in data)
+            {
+                if (frequency.ContainsKey(value))
+                    frequency[value]++;
+                else
+                    frequency[value] = 1;
+            }
+
+            double minRepeating = double.MaxValue;
+            bool found = false;
+
+            foreach (var pair in frequency)
+            {
+                if (pair.Value > 1 && pair.Key < minRepeating)
+                {
+                    minRepeating = pair.Key;
+                    found = true;
+                }
+            }
+
+            return found ? minRepeating : double.NaN;
+        }
+
+        // Перегрузка операторов
+        public static MatrixClass operator +(MatrixClass a, MatrixClass b)
+        {
+            if (a.Rows != b.Rows || a.Cols != b.Cols)
+                throw new ArgumentException("Матрицы должны быть одного размера!");
+
+            double[,] result = new double[a.Rows, a.Cols];
+
+            for (int i = 0; i < a.Rows; i++)
+                for (int j = 0; j < a.Cols; j++)
+                    result[i, j] = a.data[i, j] + b.data[i, j];
+
+            return new MatrixClass(result);
+        }
+
+        public static MatrixClass operator -(MatrixClass a, MatrixClass b)
+        {
+            if (a.Rows != b.Rows || a.Cols != b.Cols)
+                throw new ArgumentException("Матрицы должны быть одного размера!");
+
+            double[,] result = new double[a.Rows, a.Cols];
+
+            for (int i = 0; i < a.Rows; i++)
+                for (int j = 0; j < a.Cols; j++)
+                    result[i, j] = a.data[i, j] - b.data[i, j];
+
+            return new MatrixClass(result);
+        }
+
+        public static MatrixClass operator *(MatrixClass a, double scalar)
+        {
+            double[,] result = new double[a.Rows, a.Cols];
+
+            for (int i = 0; i < a.Rows; i++)
+                for (int j = 0; j < a.Cols; j++)
+                    result[i, j] = a.data[i, j] * scalar;
+
+            return new MatrixClass(result);
+        }
+
+        public static MatrixClass operator *(double scalar, MatrixClass a) => a * scalar;
+
+        // Транспонирование
+        public MatrixClass Transpose()
+        {
+            double[,] result = new double[Cols, Rows];
+
+            for (int i = 0; i < Rows; i++)
+                for (int j = 0; j < Cols; j++)
+                    result[j, i] = data[i, j];
+
+            return new MatrixClass(result);
+        }
+
+        // Перегрузка ToString
+        public override string ToString()
+        {
+            if (data == null) return "Матрица не инициализирована";
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Cols; j++)
+                {
+                    sb.Append($"{data[i, j],10:F3}");
+                }
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        // Метод для получения данных
+        public double[,] GetData() => (double[,])data.Clone();
+
+        // Индексатор
+        public double this[int i, int j]
+        {
+            get => data[i, j];
+            set => data[i, j] = value;
+        }
+    }
+
+    // Задания 4-8 
+    public static class FileOperations
+    {
+        private static Random rand = new Random();
+
+        // Задание 4: Бинарные файлы
+        public static void CreateRandomBinaryFile(string filename, int count)
+        {
+            using (var writer = new BinaryWriter(File.Open(filename, FileMode.Create)))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    writer.Write(rand.Next(-50, 51));
+                }
+            }
+            Console.WriteLine($"Создан файл {filename} с {count} числами");
+        }
+
+        public static long MultiplyOddNegatives(string filename)
+        {
+            if (!File.Exists(filename))
+            {
+                Console.WriteLine($"Файл {filename} не найден!");
+                return 0;
+            }
+
+            long product = 1;
+            bool found = false;
+
+            using (var reader = new BinaryReader(File.Open(filename, FileMode.Open)))
+            {
+                while (reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    int num = reader.ReadInt32();
+                    if (num < 0 && num % 2 != 0)
+                    {
+                        product *= num;
+                        found = true;
+                    }
+                }
+            }
+
+            return found ? product : 0;
+        }
+
+        // Задание 5: Структуры и XML
+        [Serializable]
+        public struct BaggageItem
+        {
+            public string Name;
+            public double Weight;
+        }
+
+        [Serializable]
+        public class Passenger
+        {
+            public string Name;
+            public List<BaggageItem> Baggage;
+
+            public Passenger()
+            {
+                Baggage = new List<BaggageItem>();
+            }
+        }
+
+        public static void CreateBaggageXmlFile(string filename, int passengerCount)
+        {
+            string[] items = { "Чемодан", "Сумка", "Рюкзак", "Коробка", "Пакет" };
+
+            var passengers = new List<Passenger>();
+
+            for (int i = 0; i < passengerCount; i++)
+            {
+                var passenger = new Passenger
+                {
+                    Name = $"Пассажир_{i + 1}"
+                };
+
+                int count = rand.Next(1, 6);
+                for (int j = 0; j < count; j++)
+                {
+                    passenger.Baggage.Add(new BaggageItem
+                    {
+                        Name = items[rand.Next(items.Length)],
+                        Weight = Math.Round(rand.NextDouble() * 30 + 1, 2)
+                    });
+                }
+
+                passengers.Add(passenger);
+            }
+
+            var serializer = new XmlSerializer(typeof(List<Passenger>));
+            using (var fs = new FileStream(filename, FileMode.Create))
+            {
+                serializer.Serialize(fs, passengers);
+            }
+
+            Console.WriteLine($"Создан XML файл {filename} с данными {passengerCount} пассажиров");
+        }
+
+        public static void AnalyzePassengers(string filename)
+        {
+            if (!File.Exists(filename))
+            {
+                Console.WriteLine($"Файл {filename} не найден!");
+                return;
+            }
+
+            var serializer = new XmlSerializer(typeof(List<Passenger>));
+            List<Passenger> passengers;
+
+            using (var fs = new FileStream(filename, FileMode.Open))
+            {
+                passengers = (List<Passenger>)serializer.Deserialize(fs);
+            }
+
+            int moreThanTwo = 0;
+            int aboveAverage = 0;
+
+            if (passengers.Count > 0)
+            {
+                double avg = passengers.Average(p => p.Baggage.Count);
+
+                foreach (var p in passengers)
+                {
+                    if (p.Baggage.Count > 2) moreThanTwo++;
+                    if (p.Baggage.Count > avg) aboveAverage++;
+                }
+            }
+
+            Console.WriteLine($"Пассажиров с >2 единиц багажа: {moreThanTwo}");
+            Console.WriteLine($"Пассажиров с багажом выше среднего: {aboveAverage}");
+        }
+
+        // Задание 6: Текстовый файл 
+        public static void CreateSingleNumberFile(string filename, int count)
+        {
+            using (var writer = new StreamWriter(filename))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    writer.WriteLine(rand.Next(-20, 21));
+                }
+            }
+            Console.WriteLine($"Создан файл {filename} с {count} числами");
+        }
+
+        public static long CalculateSumOfSquares(string filename)
+        {
+            if (!File.Exists(filename))
+                return 0;
+
+            long sum = 0;
+            using (var reader = new StreamReader(filename))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (int.TryParse(line, out int num))
+                        sum += num * num;
+                }
+            }
+            return sum;
+        }
+
+        // Задание 7: Текстовый файл 
+        public static void CreateMultiNumberFile(string filename, int lines, int maxNumbers)
+        {
+            using (var writer = new StreamWriter(filename))
+            {
+                for (int i = 0; i < lines; i++)
+                {
+                    int count = rand.Next(1, maxNumbers + 1);
+                    for (int j = 0; j < count; j++)
+                    {
+                        writer.Write(rand.Next(-10, 11));
+                        if (j < count - 1) writer.Write(" ");
+                    }
+                    writer.WriteLine();
+                }
+            }
+            Console.WriteLine($"Создан файл {filename} с {lines} строками чисел");
+        }
+
+        public static long CalculateProduct(string filename)
+        {
+            if (!File.Exists(filename))
+                return 0;
+
+            long product = 1;
+            bool found = false;
+
+            using (var reader = new StreamReader(filename))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    var numbers = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var numStr in numbers)
+                    {
+                        if (int.TryParse(numStr, out int num))
+                        {
+                            product *= num;
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+            return found ? product : 0;
+        }
+
+        // Задание 8: Копирование строк
+        public static void CopyLinesWithLength(string source, string destination, int length)
+        {
+            if (!File.Exists(source))
+            {
+                Console.WriteLine($"Исходный файл {source} не найден!");
+                return;
+            }
+
+            int copied = 0;
+            using (var reader = new StreamReader(source))
+            using (var writer = new StreamWriter(destination))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (line.Length == length)
+                    {
+                        writer.WriteLine(line);
+                        copied++;
+                    }
+                }
+            }
+
+            Console.WriteLine($"Скопировано {copied} строк длиной {length} в файл {destination}");
+        }
+    }
+
+    //ОСНОВНАЯ ПРОГРАММА 
+    class Program
+    {
+        static void Main()
+        {
+            Console.OutputEncoding = Encoding.UTF8;
+           
+            // Часть 1: Матрицы (задания 1-3)
+            Console.WriteLine("1. Создание матриц:");
+            Console.WriteLine("===================");
+
+            // Используем размер 3x3 для всех матриц
+            int size = 3;
+
+            // Матрица A - ввод с клавиатуры или автозаполнение
+            Console.Write("Хотите ввести матрицу A с клавиатуры? (y/n): ");
+            bool manual = Console.ReadLine().ToLower() == "y";
+
+            MatrixClass A;
+            if (manual)
+            {
+                A = new MatrixClass(size, size, true); // Ввод с клавиатуры
+            }
+            else
+            {
+                Console.WriteLine("Используется автозаполнение для матрицы A");
+                A = new MatrixClass(size, size, false); // Автозаполнение
+            }
+
+            Console.WriteLine("\nМатрица A:");
+            Console.WriteLine(A);
+
+            // Матрица B - по правилу из задания
+            Console.WriteLine("\n2. Матрица B (по правилу задания 1):");
+            MatrixClass B = new MatrixClass(size, "rule");
+            Console.WriteLine("Матрица B:");
+            Console.WriteLine(B);
+
+            // Матрица C - специальное заполнение
+            Console.WriteLine("\n3. Матрица C (специальное заполнение):");
+            MatrixClass C = new MatrixClass(size);
+            Console.WriteLine("Матрица C:");
+            Console.WriteLine(C);
+
+            // Задание 2: Минимальный повторяющийся элемент
+            Console.WriteLine("\n4. Поиск минимального повторяющегося элемента:");
+            Console.WriteLine("=============================================");
+            double minRepeat = B.FindMinRepeating();
+            if (double.IsNaN(minRepeat))
+                Console.WriteLine("В матрице B нет повторяющихся элементов");
+            else
+                Console.WriteLine($"Минимальный повторяющийся элемент в B: {minRepeat:F3}");
+
+            // Задание 3: Матричное выражение
+            Console.WriteLine("\n5. Вычисление выражения A + 2*B - 3*C^T:");
+            Console.WriteLine("========================================");
+            try
+            {
+                MatrixClass CT = C.Transpose();
+                Console.WriteLine("\nТранспонированная матрица C (C^T):");
+                Console.WriteLine(CT);
+
+                MatrixClass result = A + (B * 2) - (CT * 3);
+                Console.WriteLine("\nРезультат A + 2*B - 3*C^T:");
+                Console.WriteLine(result);
+
+             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка: {ex.Message}");
+            }
+
+            // Часть 2: Файловые операции (задания 4-8)
+            Console.WriteLine("\n\n=== ЧАСТЬ 2: ФАЙЛОВЫЕ ОПЕРАЦИИ ===");
+
+            // Задание 4
+            Console.WriteLine("\n6. Задание 4: Бинарные файлы");
+            Console.WriteLine("============================");
+            string binFile = "numbers.bin";
+            FileOperations.CreateRandomBinaryFile(binFile, 10);
+            long product1 = FileOperations.MultiplyOddNegatives(binFile);
+            Console.WriteLine($"Произведение нечетных отрицательных чисел: {product1}");
+
+            // Задание 5
+            Console.WriteLine("\n7. Задание 5: XML и структуры");
+            Console.WriteLine("=============================");
+            string xmlFile = "passengers.xml";
+            FileOperations.CreateBaggageXmlFile(xmlFile, 5);
+            FileOperations.AnalyzePassengers(xmlFile);
+
+            // Задание 6
+            Console.WriteLine("\n8. Задание 6: Текстовый файл (одно число в строке)");
+            Console.WriteLine("==================================================");
+            string txtFile1 = "single_numbers.txt";
+            FileOperations.CreateSingleNumberFile(txtFile1, 8);
+            long sumSquares = FileOperations.CalculateSumOfSquares(txtFile1);
+            Console.WriteLine($"Сумма квадратов чисел: {sumSquares}");
+
+            // Задание 7
+            Console.WriteLine("\n9. Задание 7: Текстовый файл (несколько чисел в строке)");
+            Console.WriteLine("=======================================================");
+            string txtFile2 = "multi_numbers.txt";
+            FileOperations.CreateMultiNumberFile(txtFile2, 5, 4);
+            long product2 = FileOperations.CalculateProduct(txtFile2);
+            Console.WriteLine($"Произведение всех чисел: {product2}");
+
+            // Задание 8
+            Console.WriteLine("\n10. Задание 8: Копирование строк заданной длины");
+            Console.WriteLine("===============================================");
+
+            // Создаем тестовый файл
+            string sourceFile = "text_source.txt";
+            File.WriteAllLines(sourceFile, new[] {
+                "Hello",
+                "World",
+                "Test",
+                "C#",
+                "Program",
+                "Code",
+                "Data",
+                "File"
+            });
+
+            string destFile = "text_dest.txt";
+            FileOperations.CopyLinesWithLength(sourceFile, destFile, 4);
+
+            Console.WriteLine("\nСодержимое исходного файла:");
+            Console.WriteLine(File.ReadAllText(sourceFile));
+            Console.WriteLine("\nСодержимое файла-результата (строки длиной 4):");
+            if (File.Exists(destFile))
+                Console.WriteLine(File.ReadAllText(destFile));
+
+            Console.WriteLine("\n========== РАБОТА ЗАВЕРШЕНА ==========");
+            Console.WriteLine("\nНажмите любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+
+        static void PrintMatrixForCalculator(double[,] matrix)
+        {
+            Console.Write("[");
+            for (int i = 0; i < matrix.GetLength(0); i++)
+            {
+                Console.Write("[");
+                for (int j = 0; j < matrix.GetLength(1); j++)
+                {
+                    Console.Write($"{matrix[i, j]:F3}");
+                    if (j < matrix.GetLength(1) - 1) Console.Write(",");
+                }
+                Console.Write("]");
+                if (i < matrix.GetLength(0) - 1) Console.WriteLine(",");
+            }
+            Console.WriteLine("]");
+        }
+    }
+}
